@@ -4,11 +4,13 @@ Dataset registry and factory
 
 from .hdvila import HDVILADataset, collate_fn
 from .webvid import WebVidDataset
+from .ucf101 import UCF101Dataset
 
 
 DATASETS = {
     'hdvila': HDVILADataset,
     'webvid': WebVidDataset,
+    'ucf101': UCF101Dataset,
 }
 
 
@@ -29,4 +31,4 @@ def get_dataset(dataset_name, **kwargs):
     return DATASETS[dataset_name](**kwargs)
 
 
-__all__ = ['HDVILADataset', 'WebVidDataset', 'get_dataset', 'collate_fn']
+__all__ = ['HDVILADataset', 'WebVidDataset', 'UCF101Dataset', 'get_dataset', 'collate_fn']

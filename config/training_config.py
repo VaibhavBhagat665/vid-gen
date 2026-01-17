@@ -8,14 +8,14 @@ import torch
 # Training device
 DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
 
-# Dataset configuration - OPTIMIZED FOR 200GB STORAGE (WEBVID)
+# Dataset configuration - UCF-101 (Real videos, 13K videos, 7.2GB)
 DATASET_CONFIG = {
-    "name": "webvid",  # Using WebVid-10M dataset
-    "data_root": "./data/webvid",  # Path to dataset
-    "metadata_file": "results_10M_train.csv",  # WebVid metadata file
+    "name": "ucf101",  # Using UCF-101 from Kaggle
+    "data_root": "./data/ucf101",  # Path to dataset
+    "metadata_file": "metadata.csv",
     "num_frames": 16,  # Frames per video
     "resolution": (320, 320),  # Medium resolution for better quality
-    "max_train_samples": 10000,  # 10K videos = ~200GB dataset
+    "max_train_samples": 10000,  # Use 10K out of 13K videos
     "max_val_samples": 500,  # Validation samples
 }
 
