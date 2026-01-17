@@ -95,13 +95,15 @@ class UCF101Dataset(Dataset):
                 if not caption and 'label' in row:
                     caption = self._action_to_caption(row['label'])
                 
-                samples.append({
-                    'video_id': video_id,
-                    'video_path': video_path,
-                    'caption': caption,
-                    'category': row.get('label', row.get('class', 'unknown')),
-                    'duration': float(row.get('duration', 0)),
-                })
+                # Only add if video file exists!
+                if video_path.exists():
+                    samples.append({
+                        'video_id': video_id,
+                        'video_path': video_path,
+                        'caption': caption,
+                        'category': row.get('label', row.get('class', 'unknown')),
+                        'duration': float(row.get('duration', 0)),
+                    })
         
         return samples
     
@@ -247,16 +249,21 @@ class UCF101Dataset(Dataset):
         
         return frames_tensor
     
-    def __getitem__(self, idx: int) -> Dict[str, any]:
+    def __getitem__(self, idx: int, _retry_count: int = 0) -> Dict[str, any]:
         """Get a single sample."""
         sample = self.samples[idx]
         
         # Extract frames
         frames = self._extract_frames(sample['video_path'])
         
-        # If video loading fails, try another
-        if frames is None:
-            return self.__getitem__(random.randint(0, len(self) - 1))
+        # If video loading fails, try another (with recursion limit)
+        if frames is None and _retry_count < 10:
+            return self.__getitem__(random.randint(0, len(self) - 1), _retry_count + 1)
+        elif frames is None:
+            # All retries failed - return dummy frames
+            print(f"Warning: Could not load video {sample['video_id']}, using dummy frames")
+            dummy_frames = torch.zeros(self.num_frames, 3, *self.resolution)
+            frames = dummy_frames
         
         # Apply transforms
         if self.transform:
