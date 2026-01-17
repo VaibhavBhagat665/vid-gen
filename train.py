@@ -121,7 +121,6 @@ def main():
     
     # Merge configs
     full_config = {
-        **model_config,
         **training_config,
         **logging_config,
         "model_id": MODEL_CONFIG["model_id"],
