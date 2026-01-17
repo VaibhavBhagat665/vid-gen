@@ -41,8 +41,9 @@ def download_msrvtt():
         print("This may take a few minutes...")
         print()
         
-        # Load MSR-VTT from Hugging Face
-        dataset = load_dataset("friedrichor/MSR-VTT", split="train")
+        # Load MSR-VTT from Hugging Face with proper config
+        # Available configs: train_9k, train_7k, etc.
+        dataset = load_dataset("friedrichor/MSR-VTT", "train_9k", split="train", trust_remote_code=True)
         
         print(f"✓ Downloaded {len(dataset)} entries")
         print()
@@ -123,7 +124,8 @@ def download_webvid_metadata(num_samples=10000):
         # Load WebVid metadata from Hugging Face
         dataset = load_dataset(
             "TempoFunk/webvid-10M",
-            split=f"train[:{num_samples}]"
+            split=f"train[:{num_samples}]",
+            trust_remote_code=True
         )
         
         print(f"✓ Downloaded {len(dataset)} entries")
