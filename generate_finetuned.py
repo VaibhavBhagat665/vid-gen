@@ -10,7 +10,7 @@ import torch
 from diffusers import DiffusionPipeline
 
 
-def generate_video(checkpoint_path, prompt, output_path="output.mp4", num_frames=16, width=320, height=320):
+def generate_video(checkpoint_path, prompt, output_path="output.mp4", num_frames=8, width=256, height=256):
     """Generate video from fine-tuned model."""
     
     from pathlib import Path
@@ -51,7 +51,19 @@ def generate_video(checkpoint_path, prompt, output_path="output.mp4", num_frames
         pipeline = DiffusionPipeline.from_pretrained(
             str(checkpoint_path),
             torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-        ).to(device)
+        )
+        
+        # Memory optimizations for Mac
+        if device == "mps":
+            print("Applying Mac/MPS memory optimizations...")
+            # Enable CPU offloading to save memory
+            pipeline.enable_model_cpu_offload()
+            # Enable attention slicing
+            pipeline.enable_attention_slicing(1)
+            print("  ✓ CPU offloading enabled")
+            print("  ✓ Attention slicing enabled")
+        else:
+            pipeline = pipeline.to(device)
         
         print("✓ Model loaded successfully")
         print()
@@ -64,19 +76,42 @@ def generate_video(checkpoint_path, prompt, output_path="output.mp4", num_frames
         print("3. Missing model files in checkpoint")
         return
     
+    # Clear memory before generation
+    if device == "mps":
+        import gc
+        gc.collect()
+        torch.mps.empty_cache()
+    
     # Generate video
     print("Generating video...")
     print(f"Resolution: {width}x{height}")
     print(f"Frames: {num_frames}")
+    print("Note: This may take a few minutes on Mac...")
     print()
     
-    video_frames = pipeline(
-        prompt=prompt,
-        num_frames=num_frames,
-        height=height,
-        width=width,
-        num_inference_steps=50,
-    ).frames[0]
+    try:
+        video_frames = pipeline(
+            prompt=prompt,
+            num_frames=num_frames,
+            height=height,
+            width=width,
+            num_inference_steps=50,
+        ).frames[0]
+    except RuntimeError as e:
+        if "out of memory" in str(e):
+            print("❌ Out of memory error!")
+            print()
+            print("Try reducing:")
+            print("  --width 256 --height 256")
+            print("  --num_frames 8")
+            print()
+            print("Example:")
+            print(f"  python generate_finetuned.py --checkpoint {checkpoint_path} \\")
+            print(f"    --prompt \"{prompt}\" \\")
+            print("    --width 256 --height 256 --num_frames 8")
+            return
+        else:
+            raise
 
     
     # Save video
@@ -96,12 +131,12 @@ if __name__ == "__main__":
                        help="Text prompt for video generation")
     parser.add_argument("--output", type=str, default="output.mp4",
                        help="Output video path")
-    parser.add_argument("--num_frames", type=int, default=16,
-                       help="Number of frames to generate")
-    parser.add_argument("--width", type=int, default=320,
-                       help="Video width")
-    parser.add_argument("--height", type=int, default=320,
-                       help="Video height")
+    parser.add_argument("--num_frames", type=int, default=8,
+                       help="Number of frames to generate (default: 8 for memory efficiency)")
+    parser.add_argument("--width", type=int, default=256,
+                       help="Video width (default: 256 for memory efficiency)")
+    parser.add_argument("--height", type=int, default=256,
+                       help="Video height (default: 256 for memory efficiency)")
     
     args = parser.parse_args()
     
