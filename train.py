@@ -153,13 +153,32 @@ def main():
     
     if len(train_dataset) == 0:
         print("❌ Error: No training samples found!")
-        print(f"   Please check that {args.data_root} contains videos and metadata.")
-        print(f"   Expected structure:")
+        print(f"   Data root: {args.data_root}")
+        print()
+        
+        # Show what's actually there
+        from pathlib import Path
+        data_root = Path(args.data_root)
+        if data_root.exists():
+            print("   Contents found:")
+            for item in data_root.iterdir():
+                if item.is_dir():
+                    num_files = len(list(item.glob("*.*")))
+                    print(f"   - {item.name}/ ({num_files} files)")
+                else:
+                    print(f"   - {item.name}")
+        else:
+            print(f"   Directory doesn't exist!")
+        
+        print()
+        print(f"   Expected structure for UCF-101 (Kaggle format):")
         print(f"   {args.data_root}/")
-        print(f"   ├── videos/")
-        print(f"   │   ├── video1.mp4")
-        print(f"   │   └── video2.mp4")
-        print(f"   └── metadata.csv")
+        print(f"   ├── train/           # Training videos")
+        print(f"   │   ├── video1.avi")
+        print(f"   │   └── video2.avi")
+        print(f"   ├── test/            # Test videos")
+        print(f"   ├── train.csv        # Training metadata")
+        print(f"   └── test.csv         # Test metadata")
         return
     
     # Load model
