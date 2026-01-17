@@ -8,11 +8,11 @@ import torch
 # Training device
 DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
 
-# Dataset configuration - OPTIMIZED FOR 200GB STORAGE
+# Dataset configuration - OPTIMIZED FOR 200GB STORAGE (WEBVID)
 DATASET_CONFIG = {
-    "name": "hdvila",  # or "webvid"
-    "data_root": "./data/hdvila",  # Path to dataset
-    "metadata_file": "metadata.csv",
+    "name": "webvid",  # Using WebVid-10M dataset
+    "data_root": "./data/webvid",  # Path to dataset
+    "metadata_file": "results_10M_train.csv",  # WebVid metadata file
     "num_frames": 16,  # Frames per video
     "resolution": (320, 320),  # Medium resolution for better quality
     "max_train_samples": 10000,  # 10K videos = ~200GB dataset
