@@ -31,8 +31,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train text-to-video model")
     
     # Dataset arguments
-    parser.add_argument("--dataset", type=str, default="hdvila", 
-                       choices=["hdvila", "webvid"], help="Dataset to use")
+    parser.add_argument("--dataset", type=str, default="ucf101", 
+                       choices=["hdvila", "webvid", "ucf101"], help="Dataset to use")
     parser.add_argument("--data_root", type=str, required=True,
                        help="Root directory containing dataset")
     parser.add_argument("--metadata_file", type=str, default="metadata.csv",
