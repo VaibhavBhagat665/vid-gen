@@ -57,9 +57,6 @@ class VideoTrainer:
         # Setup optimizer
         self.optimizer = self._setup_optimizer()
         
-        # Setup scheduler
-        self.lr_scheduler = self._setup_scheduler()
-        
         # Setup noise scheduler for training
         self.noise_scheduler = DDPMScheduler.from_pretrained(
             config.get("model_id", "cerspense/zeroscope_v2_576w"),
@@ -72,7 +69,7 @@ class VideoTrainer:
             subfolder="tokenizer"
         )
         
-        # Setup data loaders
+        # Setup data loaders (MUST be before scheduler setup!)
         self.train_loader = DataLoader(
             train_dataset,
             batch_size=config.get("batch_size", 1),
@@ -89,6 +86,9 @@ class VideoTrainer:
             num_workers=0,
             pin_memory=False
         ) if val_dataset else None
+        
+        # Setup scheduler (needs train_loader to exist!)
+        self.lr_scheduler = self._setup_scheduler()
         
         # Setup logging
         self.log_dir = Path(config.get("log_dir", "./logs"))
