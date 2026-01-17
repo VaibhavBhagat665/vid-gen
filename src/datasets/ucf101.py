@@ -71,21 +71,29 @@ class UCF101Dataset(Dataset):
         
         with open(metadata_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
+            
+            # DEBUG: Print CSV columns
+            first_row = None
             for idx, row in enumerate(reader):
-                if max_samples and idx >= max_samples:
+                if idx == 0:
+                    print(f"DEBUG: CSV columns: {list(row.keys())}")
+                    print(f"DEBUG: First row: {row}")
+                    first_row = row
+                
+                if max_samples and len(samples) >= max_samples:
                     break
                 
                 # Kaggle CSV might have different column names
                 # Try common variations
-                video_id = row.get('video_id', row.get('filename', row.get('id', f'video{idx}')))
-                caption = row.get('caption', row.get('label', row.get('class', '')))
+                video_id = row.get('video_id', row.get('filename', row.get('id', row.get('video_name', f'video{idx}'))))
+                caption = row.get('caption', row.get('label', row.get('class', row.get('tag', ''))))
                 
                 # Video file path - assuming it's in train/ or test/
                 video_path = self.videos_dir / f"{video_id}"
                 
                 # Try different extensions
                 if not video_path.exists():
-                    for ext in ['.avi', '.mp4', '.mkv']:
+                    for ext in ['.avi', '.mp4', '.mkv', '.AVI', '.MP4', '.MKV']:
                         test_path = self.videos_dir / f"{video_id}{ext}"
                         if test_path.exists():
                             video_path = test_path
@@ -94,6 +102,10 @@ class UCF101Dataset(Dataset):
                 # Create caption from label if needed
                 if not caption and 'label' in row:
                     caption = self._action_to_caption(row['label'])
+                elif not caption and 'tag' in row:
+                    caption = self._action_to_caption(row['tag'])
+                elif not caption:
+                    caption = "a person performing an action"
                 
                 # Only add if video file exists!
                 if video_path.exists():
@@ -101,10 +113,14 @@ class UCF101Dataset(Dataset):
                         'video_id': video_id,
                         'video_path': video_path,
                         'caption': caption,
-                        'category': row.get('label', row.get('class', 'unknown')),
+                        'category': row.get('label', row.get('class', row.get('tag', 'unknown'))),
                         'duration': float(row.get('duration', 0)),
                     })
+                elif idx < 5:  # Debug first few failures
+                    print(f"DEBUG: Video not found: {video_path}")
+                    print(f"  Tried: {video_id} with extensions .avi, .mp4, .mkv")
         
+        print(f"DEBUG: Loaded {len(samples)} samples from {metadata_path}")
         return samples
     
     def _generate_metadata(self, max_samples: Optional[int]) -> List[Dict]:
