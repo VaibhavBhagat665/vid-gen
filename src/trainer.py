@@ -42,11 +42,17 @@ class VideoTrainer:
         print(f"Moving model to {device}...")
         self.model = self.model.to(device)
         
-        # Enable gradient checkpointing if configured
+        # Enable gradient checkpointing if configured and supported
         if config.get("gradient_checkpointing", False):
             if hasattr(self.model, 'unet'):
-                self.model.unet.enable_gradient_checkpointing()
-                print("✓ Gradient checkpointing enabled")
+                # Check if model supports gradient checkpointing
+                if hasattr(self.model.unet, '_supports_gradient_checkpointing') and self.model.unet._supports_gradient_checkpointing:
+                    self.model.unet.enable_gradient_checkpointing()
+                    print("✓ Gradient checkpointing enabled")
+                else:
+                    print("⚠️  Gradient checkpointing not supported by this model, skipping...")
+                    print("   (This is normal for UNet3DConditionModel - training will use more memory)")
+
         
         # Setup optimizer
         self.optimizer = self._setup_optimizer()
