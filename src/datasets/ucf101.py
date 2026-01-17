@@ -32,7 +32,7 @@ class UCF101Dataset(Dataset):
     def __init__(
         self,
         data_root: str,
-        metadata_file: str = "metadata.csv",
+        metadata_file: str = "train.csv",  # Changed default
         num_frames: int = 16,
         resolution: Tuple[int, int] = (256, 256),
         split: str = "train",
@@ -40,21 +40,70 @@ class UCF101Dataset(Dataset):
         transform=None
     ):
         self.data_root = Path(data_root)
-        self.videos_dir = self.data_root / "videos"
+        # Kaggle format: train/ and test/ folders
+        self.videos_dir = self.data_root / split  # Use split name directly
         self.num_frames = num_frames
         self.resolution = resolution
         self.split = split
         self.transform = transform
         
-        # Load metadata  
-        metadata_path = self.data_root / metadata_file
-        if metadata_path.exists():
-            self.samples = self._load_metadata(metadata_path, max_samples)
+        # Load metadata - Kaggle format
+        if split == "train":
+            metadata_path = self.data_root / "train.csv"
         else:
-            # Auto-generate from video files
+            metadata_path = self.data_root / "test.csv"
+            
+        if metadata_path.exists():
+            self.samples = self._load_metadata_kaggle(metadata_path, max_samples)
+        else:
+            # Fallback: generate from video files
             self.samples = self._generate_metadata(max_samples)
         
         print(f"Loaded {len(self.samples)} UCF-101 samples for {split} split")
+    
+    def _load_metadata_kaggle(
+        self, 
+        metadata_path: Path, 
+        max_samples: Optional[int]
+    ) -> List[Dict]:
+        """Load metadata from Kaggle CSV format."""
+        samples = []
+        
+        with open(metadata_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for idx, row in enumerate(reader):
+                if max_samples and idx >= max_samples:
+                    break
+                
+                # Kaggle CSV might have different column names
+                # Try common variations
+                video_id = row.get('video_id', row.get('filename', row.get('id', f'video{idx}')))
+                caption = row.get('caption', row.get('label', row.get('class', '')))
+                
+                # Video file path - assuming it's in train/ or test/
+                video_path = self.videos_dir / f"{video_id}"
+                
+                # Try different extensions
+                if not video_path.exists():
+                    for ext in ['.avi', '.mp4', '.mkv']:
+                        test_path = self.videos_dir / f"{video_id}{ext}"
+                        if test_path.exists():
+                            video_path = test_path
+                            break
+                
+                # Create caption from label if needed
+                if not caption and 'label' in row:
+                    caption = self._action_to_caption(row['label'])
+                
+                samples.append({
+                    'video_id': video_id,
+                    'video_path': video_path,
+                    'caption': caption,
+                    'category': row.get('label', row.get('class', 'unknown')),
+                    'duration': float(row.get('duration', 0)),
+                })
+        
+        return samples
     
     def _generate_metadata(self, max_samples: Optional[int]) -> List[Dict]:
         """Generate metadata from video file structure."""
@@ -64,33 +113,37 @@ class UCF101Dataset(Dataset):
             print(f"Warning: Videos directory not found: {self.videos_dir}")
             return samples
         
-        # UCF-101 has action classes as subdirectories
-        for action_dir in self.videos_dir.iterdir():
-            if not action_dir.is_dir():
+        # For Kaggle format - videos are directly in train/ or test/
+        for video_file in self.videos_dir.glob("*.*"):
+            if video_file.suffix.lower() not in ['.avi', '.mp4', '.mkv']:
                 continue
+                
+            if max_samples and len(samples) >= max_samples:
+                break
             
-            action_class = action_dir.name
+            video_id = video_file.stem
             
-            for video_file in action_dir.glob("*.avi"):
-                if max_samples and len(samples) >= max_samples:
-                    break
-                
-                video_id = video_file.stem
-                
-                # Create caption from action class (convert CamelCase to sentence)
-                caption = self._action_to_caption(action_class)
-                
-                # Train/val split (80/20)
-                is_train = len(samples) % 5 != 0
-                
-                if (self.split == "train" and is_train) or (self.split == "val" and not is_train):
-                    samples.append({
-                        'video_id': video_id,
-                        'video_path': video_file,
-                        'caption': caption,
-                        'category': action_class,
-                        'duration': 0,  # Unknown
-                    })
+            # Try to extract action class from filename
+            # Common formats: "classname_video123" or just "video123"
+            parts = video_id.split('_')
+            if len(parts) > 1:
+                action_class = parts[0]
+            else:
+                action_class = "action"
+            
+            caption = self._action_to_caption(action_class)
+            
+            # Train/val split (80/20)
+            is_train = len(samples) % 5 != 0
+            
+            if (self.split == "train" and is_train) or (self.split == "val" and not is_train):
+                samples.append({
+                    'video_id': video_id,
+                    'video_path': video_file,
+                    'caption': caption,
+                    'category': action_class,
+                    'duration': 0,
+                })
         
         return samples
     
