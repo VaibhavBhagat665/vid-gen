@@ -13,6 +13,8 @@ from diffusers import DiffusionPipeline
 def generate_video(checkpoint_path, prompt, output_path="output.mp4", num_frames=16, width=320, height=320):
     """Generate video from fine-tuned model."""
     
+    from pathlib import Path
+    
     print("=" * 60)
     print("Loading Fine-Tuned Model")
     print("=" * 60)
@@ -20,17 +22,47 @@ def generate_video(checkpoint_path, prompt, output_path="output.mp4", num_frames
     print(f"Prompt: {prompt}")
     print()
     
+    # Verify checkpoint exists
+    checkpoint_path = Path(checkpoint_path)
+    if not checkpoint_path.exists():
+        print(f"❌ Error: Checkpoint not found at {checkpoint_path}")
+        print()
+        print("Available checkpoints:")
+        checkpoints_dir = Path("./checkpoints")
+        if checkpoints_dir.exists():
+            for cp in sorted(checkpoints_dir.iterdir()):
+                if cp.is_dir():
+                    print(f"  - {cp}")
+        else:
+            print("  No checkpoints directory found!")
+        print()
+        print("Make sure you:")
+        print("1. Completed training")
+        print("2. Have checkpoints in ./checkpoints/")
+        print("3. Use the correct checkpoint path")
+        return
+    
     # Load your fine-tuned model
     device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
     
-    pipeline = DiffusionPipeline.from_pretrained(
-        checkpoint_path,
-        torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-    ).to(device)
-    
-    print("✓ Model loaded successfully")
-    print()
+    print("Loading model components...")
+    try:
+        pipeline = DiffusionPipeline.from_pretrained(
+            str(checkpoint_path),
+            torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+        ).to(device)
+        
+        print("✓ Model loaded successfully")
+        print()
+    except Exception as e:
+        print(f"❌ Error loading model: {e}")
+        print()
+        print("This might mean:")
+        print("1. The checkpoint is corrupted")
+        print("2. Training didn't save properly")
+        print("3. Missing model files in checkpoint")
+        return
     
     # Generate video
     print("Generating video...")
@@ -45,6 +77,7 @@ def generate_video(checkpoint_path, prompt, output_path="output.mp4", num_frames
         width=width,
         num_inference_steps=50,
     ).frames[0]
+
     
     # Save video
     from diffusers.utils import export_to_video
