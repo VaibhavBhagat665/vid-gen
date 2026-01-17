@@ -41,7 +41,9 @@ class UCF101Dataset(Dataset):
     ):
         self.data_root = Path(data_root)
         # Kaggle format: train/ and test/ folders
-        self.videos_dir = self.data_root / split  # Use split name directly
+        # Map 'val' split to 'test' folder for UCF-101
+        folder_name = "test" if split == "val" else split
+        self.videos_dir = self.data_root / folder_name
         self.num_frames = num_frames
         self.resolution = resolution
         self.split = split
@@ -286,7 +288,7 @@ class UCF101Dataset(Dataset):
             frames = self.transform(frames)
         
         return {
-            'video': frames,  # (T, C, H, W)
+            'videos': frames,  # Changed from 'video' to 'videos' to match trainer
             'caption': sample['caption'],
             'video_id': sample['video_id']
         }
